@@ -34,13 +34,102 @@
 /*======================================================WRBase============================================================*/
 
 @implementation WRBase
-@synthesize passive, password, username, address;
+@synthesize passive, password, username, schemeId;
+
+- (id)init {
+    self = [super init];
+    if (self) {
+        self.schemeId = kWRFTP;
+        self.passive = NO;
+        self.password = nil;
+        self.username = nil;
+        self.hostname = nil;
+        self.path = @"";
+    }
+    return self;
+}
+
+-(NSURL*) fullURL {
+    // first we merge all the url parts into one big and beautiful url
+    NSString * fullURLString = [self.scheme stringByAppendingFormat:@"%@%@%@%@", @"://", self.credentials, self.hostname, self.path];       
+    return [NSURL URLWithString:fullURLString];
+}
+
+-(NSString *)path {
+    //  we remove all the extra slashes from the directory path, including the last one (if there is one)
+    //  we also escape it
+    NSString * escapedPath = [[path stringByStandardizingPath] stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];   
+    
+    
+    //  we need the path to be absolute, if it's not, we *make* it
+    if (![escapedPath isAbsolutePath]) {
+        escapedPath = [@"/" stringByAppendingString:escapedPath];
+    }
+    
+    return escapedPath;
+}
+
+
+-(void) setPath:(NSString *)directoryPathLocal {
+    [directoryPathLocal retain];
+    [path release];
+    path = directoryPathLocal;
+}
+
+
+
+-(NSString *)scheme {
+    switch (self.schemeId) {
+        case kWRFTP:
+            return @"ftp";
+            break;
+    }
+    
+    return @"";
+}
+
+-(NSString *) hostname {
+    return [hostname stringByStandardizingPath];
+}
+
+-(void)setHostname:(NSString *)hostnamelocal {
+    [hostnamelocal retain];
+    [hostname release];
+    hostname = hostnamelocal;
+}
+
+-(NSString *) credentials {    
+    
+    NSString * cred;
+    
+    if (self.username!=nil) {
+        if (self.password!=nil) {
+            cred = [NSString stringWithFormat:@"%@:%@@", self.username, self.password];
+        }else{
+            cred = [NSString stringWithFormat:@"%@@", self.username];
+        }
+    }else{
+        cred = @"";
+    }
+    
+    return [[cred stringByStandardizingPath] stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];;
+}
+
+
+
+
+-(void) start{
+}
+
+-(void) destroy{
+    
+}
 
 - (void)dealloc {
-    [passive release];
     [password release];
-    [address release];
+    [hostname release];
     [username release];
+    [path release];
     [super dealloc];
 }
 
@@ -71,7 +160,7 @@
     request.passive = self.passive;
     request.password = self.password;
     request.username = self.username;
-    request.address = self.address;
+    request.hostname = self.hostname;
     
     if (tailRequest == nil){
         [request retain];
@@ -117,12 +206,14 @@
     request.prevRequest = nil;
 }
 
--(void) start{    
+-(void) start{
+    [super start];
     [headRequest start];
 }
 
--(void) cancel{
-    [headRequest cancel];
+-(void) destroy{
+    [super destroy];
+    [headRequest destroy];
     headRequest.nextRequest = nil;
 }
 
@@ -170,20 +261,10 @@
 /*======================================================WRRequest============================================================*/
 
 @implementation WRRequest
-@synthesize type, error, result, nextRequest, prevRequest, delegate;
-
--(void) start{
-    [self.delegate performSelector:@selector(requestCompleted:) withObject:self afterDelay:1];
-}
-
--(void) cancel{
-
-}
+@synthesize type, error, nextRequest, prevRequest, delegate;
 
 -(void)dealloc {
-    [type release];
     [error release];
-    [result release];
     [nextRequest release];
     [prevRequest release];
     [delegate release];
@@ -193,3 +274,228 @@
 }
 
 @end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*======================================================WRRequestDownload============================================================*/
+
+@implementation WRRequestDownload
+
+
+
+-(void) start{    
+    [super start];
+    
+    if (self.hostname==nil) {
+        NSLog(@"the address is nil error");
+        [self.delegate requestFailed:self];
+        return;
+    }
+    
+    // a little bit of C because I was not able to make NSInputStream play nice
+    CFReadStreamRef readStreamRef = CFReadStreamCreateWithFTPURL(NULL, (CFURLRef)self.fullURL);
+    streamInfo.readStream = (NSInputStream *)readStreamRef;
+    
+    if (streamInfo.readStream==nil) {
+        NSLog(@"the address is incorect");
+        [self.delegate requestFailed:self];
+        return;
+    }
+    
+	[streamInfo.readStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
+	[streamInfo.readStream open];
+}
+
+-(void) destroy{
+    [super destroy];
+    
+    [streamInfo.readStream close];
+    [streamInfo.readStream removeFromRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
+    [streamInfo.readStream release];
+    streamInfo.readStream = nil;
+    streamInfo.consumedBytes = 0;
+    streamInfo.leftoverBytes = 0;
+    
+}
+
+-(void)dealloc {
+    [super dealloc];
+}
+
+@end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*======================================================WRRequestUpload============================================================*/
+
+@implementation WRRequestUpload
+
+-(WRRequestTypes)type {
+    return kWRDownloadRequest;
+}
+
+-(void) start{    
+    [super start];
+    
+    if (self.hostname==nil) {
+        NSLog(@"the address is nil error");
+        [self.delegate requestFailed:self];
+        return;
+    }
+    
+    // a little bit of C because I was not able to make NSInputStream play nice
+    CFWriteStreamRef writeStreamRef = CFWriteStreamCreateWithFTPURL(NULL, (CFURLRef)self.fullURL);
+    streamInfo.writeStream = (NSOutputStream *)writeStreamRef;
+    
+    if (streamInfo.writeStream==nil) {
+        NSLog(@"the address is incorect");
+        [self.delegate requestFailed:self];
+        return;
+    }
+    
+	[streamInfo.writeStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
+	[streamInfo.writeStream open];
+}
+
+-(void) destroy{
+    [super destroy];
+    
+    [streamInfo.writeStream close];
+    [streamInfo.writeStream removeFromRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
+    [streamInfo.writeStream release];
+    streamInfo.writeStream = nil;
+    streamInfo.consumedBytes = 0;
+    streamInfo.leftoverBytes = 0;
+    
+}
+
+@end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*======================================================WRRequestListDir============================================================*/
+
+@implementation WRRequestListDir
+@synthesize filesInfo;
+
+
+-(WRRequestTypes)type {
+    return kWRListDirectoryRequest;
+}
+
+-(NSString *)path {
+    //  the path will always point to a directory, so we add the final slash to it (if there was one before escaping/standardizing, it's *gone* now)
+    return [[super path] stringByAppendingString:@"/"];
+}
+
+-(void) start {
+    [super start];
+    streamInfo.readStream.delegate = self;
+}
+
+//stream delegate
+- (void)stream:(NSStream *)theStream handleEvent:(NSStreamEvent)streamEvent {
+    
+    switch (streamEvent) {
+        case NSStreamEventOpenCompleted: {
+			self.filesInfo = [NSMutableArray array];
+        } break;
+        case NSStreamEventHasBytesAvailable: {
+            
+            
+            streamInfo.consumedBytes = [streamInfo.readStream read:streamInfo.buffer maxLength:kWRDefaultBufferSize];
+            
+            if (streamInfo.consumedBytes!=-1) {
+                if (streamInfo.consumedBytes==0) {
+                   [self.delegate requestCompleted:self]; 
+                   [self destroy]; 
+                }else{
+                    NSUInteger  offset = 0;
+                    CFIndex     parsedBytes;
+                    
+                    do {        
+                        
+                        CFDictionaryRef listingEntity = NULL;
+                        
+                        parsedBytes = CFFTPCreateParsedResourceListing(NULL, &streamInfo.buffer[offset], streamInfo.consumedBytes - offset, &listingEntity);
+                        
+                        if (parsedBytes > 0) {
+                            if (listingEntity != NULL) {            
+                                [self.filesInfo addObject:(NSDictionary *)listingEntity];                            
+                            }            
+                            offset += parsedBytes;            
+                        }
+                        
+                        if (listingEntity != NULL) {            
+                            CFRelease(listingEntity);            
+                        }                    
+                    } while (parsedBytes>0); 
+                }
+            }else{
+                NSLog(@"Stream read failed. Abort!");
+                [self.delegate requestFailed:self];
+                [self destroy];
+            }
+            
+            
+        } break;
+        case NSStreamEventHasSpaceAvailable: {
+            NSLog(@"hasspce");
+        } break;
+        case NSStreamEventErrorOccurred: {
+            NSLog(@"errror: %@", [theStream streamError]);
+            [self.delegate requestFailed:self];
+            [self destroy];
+        } break;
+        case NSStreamEventEndEncountered: {
+            [self.delegate requestFailed:self];
+            [self destroy];
+        } break;
+    }
+}
+
+
+-(void)dealloc {    
+    [filesInfo release];
+    [super dealloc];
+}
+
+@end
+

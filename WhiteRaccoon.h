@@ -22,12 +22,13 @@
 //  THE SOFTWARE.
 
 #import <Foundation/Foundation.h>
+#import <CFNetwork/CFNetwork.h>
 
 @class WRRequest;
 @class WRRequestQueue;
 @class WRRequestError;
 
-/*======================================================Global Constants and Enums============================================================*/
+/*======================================================Global Constants, Structs and Enums============================================================*/
 
 typedef enum {
     kWRUploadRequest,
@@ -37,11 +38,26 @@ typedef enum {
 } WRRequestTypes;
 
 
+typedef enum {
+    kWRFTP
+} WRSchemes;
 
 
+typedef enum {
+    kWRDefaultBufferSize = 32768
+} WRBufferSizes;
 
 
-
+typedef struct WRStreamInfo {
+    
+    NSOutputStream    *writeStream;    
+    NSInputStream     *readStream;
+    UInt32            consumedBytes;    
+    UInt32            leftoverBytes;
+    SInt64            size;
+    UInt8             buffer[kWRDefaultBufferSize];
+    
+} WRStreamInfo;
 
 /*======================================================WRRequestDelegate============================================================*/
 
@@ -66,13 +82,23 @@ typedef enum {
 /*======================================================WRBase============================================================*/
 //Abstract class, do not instantiate
 @interface WRBase : NSObject {
-    
+@protected 
+    NSString * path;
+    NSString * hostname;
 }
 
 @property (nonatomic, retain) NSString * username;
+@property (nonatomic, assign) WRSchemes schemeId;
+@property (nonatomic, readonly) NSString * scheme;
 @property (nonatomic, retain) NSString * password;
-@property (nonatomic, retain) NSString * address;
-@property (nonatomic, retain) NSNumber * passive;
+@property (nonatomic, retain) NSString * hostname;
+@property (nonatomic, readonly) NSString * credentials;
+@property (nonatomic, readonly) NSURL * fullURL;
+@property (nonatomic, retain) NSString * path;
+@property (nonatomic, assign) BOOL passive;
+
+-(void) start;
+-(void) destroy;
 
 @end
 
@@ -87,21 +113,91 @@ typedef enum {
 /*======================================================WRRequest============================================================*/
 
 @interface WRRequest : WRBase {
-    
+    @protected
+    WRStreamInfo streamInfo;
 }
 
 @property (nonatomic, retain) WRRequest * nextRequest;
 @property (nonatomic, retain) WRRequest * prevRequest;
 @property (nonatomic, retain) WRRequestError * error;
-@property (nonatomic, retain) id result;
-@property (nonatomic, retain) NSNumber * type;
-
+@property (nonatomic, readonly) WRRequestTypes type;
 @property (nonatomic, retain) id<WRRequestDelegate> delegate;
 
--(void) start;
--(void) cancel;
+@end
+
+
+
+
+
+
+
+
+
+/*======================================================WRRequestDownload============================================================*/
+
+@interface WRRequestDownload : WRRequest {
+  
+}
 
 @end
+
+
+
+
+
+
+
+
+
+
+/*======================================================WRRequestUpload============================================================*/
+
+@interface WRRequestUpload : WRRequest {
+    
+}
+
+@end
+
+
+
+
+
+
+
+
+
+
+/*======================================================WRRequestCreateDirectory============================================================*/
+
+@interface WRRequestCreateDirectory : WRRequestUpload<NSStreamDelegate> {
+    
+}
+
+@end
+
+
+
+
+
+
+
+
+
+
+/*======================================================WRRequestListDir============================================================*/
+
+@interface WRRequestListDir : WRRequestDownload<NSStreamDelegate> {
+   
+}
+
+@property (nonatomic, retain) NSMutableArray * filesInfo;
+
+
+@end
+
+
+
+
 
 
 
@@ -127,9 +223,6 @@ typedef enum {
 -(void) addRequest:(WRRequest *) request;
 -(void) addRequestsFromArray: (NSArray *) array;
 -(void) removeRequestFromQueue:(WRRequest *) request;
-
--(void) start;
--(void) cancel;
 
 @end
 
