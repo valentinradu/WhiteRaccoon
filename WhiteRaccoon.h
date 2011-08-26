@@ -27,8 +27,9 @@
 @class WRRequest;
 @class WRRequestQueue;
 @class WRRequestError;
+@class WRRequestListDir;
 
-/*======================================================Global Constants, Structs and Enums============================================================*/
+/*======================================================Global Constants, Variables, Structs and Enums============================================================*/
 
 typedef enum {
     kWRUploadRequest,
@@ -52,12 +53,20 @@ typedef struct WRStreamInfo {
     
     NSOutputStream    *writeStream;    
     NSInputStream     *readStream;
-    UInt32            consumedBytes;    
-    UInt32            leftoverBytes;
+    UInt32            bytesConsumedThisIteration;    
+    UInt32            bytesConsumedInTotal;
     SInt64            size;
     UInt8             buffer[kWRDefaultBufferSize];
     
 } WRStreamInfo;
+
+
+
+
+
+
+
+
 
 /*======================================================WRRequestDelegate============================================================*/
 
@@ -66,6 +75,9 @@ typedef struct WRStreamInfo {
 @required
 -(void) requestCompleted:(WRRequest *) request;
 -(void) requestFailed:(WRRequest *) request;
+
+@optional
+-(BOOL) shouldOverwriteFileWithRequest: (WRRequest *) request;
 
 
 @end
@@ -99,6 +111,9 @@ typedef struct WRStreamInfo {
 
 -(void) start;
 -(void) destroy;
+
++(NSDictionary *) cachedFolders;
++(void) addFoldersToCache:(NSArray *) foldersArray forParentFolderPath:(NSString *) key;
 
 @end
 
@@ -135,9 +150,11 @@ typedef struct WRStreamInfo {
 
 /*======================================================WRRequestDownload============================================================*/
 
-@interface WRRequestDownload : WRRequest {
+@interface WRRequestDownload : WRRequest<NSStreamDelegate> {
   
 }
+
+@property (nonatomic, retain) NSMutableData * receivedData;
 
 @end
 
@@ -152,9 +169,12 @@ typedef struct WRStreamInfo {
 
 /*======================================================WRRequestUpload============================================================*/
 
-@interface WRRequestUpload : WRRequest {
+@interface WRRequestUpload : WRRequest<WRRequestDelegate, NSStreamDelegate> {
     
 }
+
+@property (nonatomic, retain) WRRequestListDir * listrequest;
+@property (nonatomic, retain) NSMutableData * sentData;
 
 @end
 

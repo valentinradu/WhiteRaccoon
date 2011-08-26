@@ -31,10 +31,35 @@
 
 
 
+
 /*======================================================WRBase============================================================*/
 
 @implementation WRBase
 @synthesize passive, password, username, schemeId;
+
+
+
+static NSMutableDictionary *folders;
+
++ (void)initialize
+{    
+    static BOOL initialized = NO;
+    if(!initialized)
+    {
+        initialized = YES;
+        folders = [[NSMutableDictionary alloc] init];
+    }
+}
+
+
++(NSDictionary *) cachedFolders {
+    return folders;
+}
+
++(void) addFoldersToCache:(NSArray *) foldersArray forParentFolderPath:(NSString *) key {
+    [folders setObject:foldersArray forKey:key];
+}
+
 
 - (id)init {
     self = [super init];
@@ -236,6 +261,16 @@
     [self.delegate requestFailed:request];
 }
 
+-(BOOL) shouldOverwriteFileWithRequest:(WRRequest *)request {
+    if (![self.delegate respondsToSelector:@selector(shouldOverwriteFileWithRequest:)]) {
+        return NO;
+    }else{
+        return [self.delegate shouldOverwriteFileWithRequest:request];
+    }
+}
+
+
+
 -(void)dealloc {
     [headRequest release];
     [tailRequest release];
@@ -263,12 +298,16 @@
 @implementation WRRequest
 @synthesize type, error, nextRequest, prevRequest, delegate;
 
+-(void)destroy {
+    streamInfo.bytesConsumedThisIteration = 0;
+    streamInfo.bytesConsumedInTotal = 0;
+}
+
 -(void)dealloc {
     [error release];
     [nextRequest release];
     [prevRequest release];
     [delegate release];
-    
     
     [super dealloc];
 }
@@ -292,6 +331,11 @@
 /*======================================================WRRequestDownload============================================================*/
 
 @implementation WRRequestDownload
+@synthesize receivedData;
+
+-(WRRequestTypes)type {
+    return kWRDownloadRequest;
+}
 
 
 
@@ -314,8 +358,53 @@
         return;
     }
     
+    
+    streamInfo.readStream.delegate = self;
 	[streamInfo.readStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
 	[streamInfo.readStream open];
+}
+
+//stream delegate
+- (void)stream:(NSStream *)theStream handleEvent:(NSStreamEvent)streamEvent {
+    
+    switch (streamEvent) {
+        case NSStreamEventOpenCompleted: {
+            streamInfo.bytesConsumedInTotal = 0;
+            self.receivedData = [NSMutableData data];
+        } break;
+        case NSStreamEventHasBytesAvailable: {
+            
+            streamInfo.bytesConsumedThisIteration = [streamInfo.readStream read:streamInfo.buffer maxLength:kWRDefaultBufferSize];
+            
+            if (streamInfo.bytesConsumedThisIteration!=-1) {
+                if (streamInfo.bytesConsumedThisIteration==0) {  
+                    [self.delegate requestCompleted:self]; 
+                    [self destroy]; 
+                }else{
+                    [self.receivedData appendBytes:streamInfo.buffer length:streamInfo.bytesConsumedThisIteration]; 
+                }
+            }else{
+                NSLog(@"Stream read failed. Abort!");
+                [self.delegate requestFailed:self];
+                [self destroy];
+            }
+            
+        } break;
+        case NSStreamEventHasSpaceAvailable: {
+            
+        } break;
+        case NSStreamEventErrorOccurred: {
+            NSLog(@"errror: %@", [theStream streamError]);
+            [self.delegate requestFailed:self];
+            [self destroy];
+        } break;
+            
+        case NSStreamEventEndEncountered: {
+            NSLog(@"Stream was intrerupted by server");
+            [self.delegate requestFailed:self];
+            [self destroy];
+        } break;
+    }
 }
 
 -(void) destroy{
@@ -324,13 +413,11 @@
     [streamInfo.readStream close];
     [streamInfo.readStream removeFromRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
     [streamInfo.readStream release];
-    streamInfo.readStream = nil;
-    streamInfo.consumedBytes = 0;
-    streamInfo.leftoverBytes = 0;
-    
+    streamInfo.readStream = nil;    
 }
 
 -(void)dealloc {
+    [receivedData release];
     [super dealloc];
 }
 
@@ -354,10 +441,15 @@
 
 /*======================================================WRRequestUpload============================================================*/
 
+@interface WRRequestUpload () //note the empty category name
+-(void)upload;
+@end
+
 @implementation WRRequestUpload
+@synthesize listrequest, sentData;
 
 -(WRRequestTypes)type {
-    return kWRDownloadRequest;
+    return kWRUploadRequest;
 }
 
 -(void) start{    
@@ -367,8 +459,52 @@
         NSLog(@"the address is nil error");
         [self.delegate requestFailed:self];
         return;
+    }   
+    
+    //we first list the directory to see if our folder is up already
+    
+    self.listrequest = [[[WRRequestListDir alloc] init] autorelease];    
+    self.listrequest.path = [self.path stringByDeletingLastPathComponent];
+    self.listrequest.hostname = self.hostname;
+    self.listrequest.username = self.username;
+    self.listrequest.password = self.password;
+    self.listrequest.delegate = self;
+    [self.listrequest start];
+}
+
+-(void) requestCompleted:(WRRequest *) request{
+    
+    BOOL fileAlreadyExists = NO;
+    NSString * fileName = [[self.path lastPathComponent] stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"/"]];
+    for (NSDictionary * file in self.listrequest.filesInfo) {
+        NSString * name = [file objectForKey:(id)kCFFTPResourceName];
+        if ([fileName isEqualToString:name]) {
+            fileAlreadyExists = YES;
+        }
     }
     
+    
+    if (fileAlreadyExists) {
+        if (![self.delegate shouldOverwriteFileWithRequest:self]) {
+            NSLog(@"There is already an file/folder with that name and you decided not to overwrite!");
+            [self.delegate requestFailed:self];
+        }else{
+            //unfortunately, for FTP there is no current solution for deleting/overwriting a folder (or I was not able to find one yet)
+            //it will fail with permission error
+            [self upload];
+        }
+    }else{
+        [self upload];
+    }    
+}
+
+
+-(void) requestFailed:(WRRequest *) request{
+    NSLog(@"listing had failed");
+    [self.delegate requestFailed:self];
+}
+
+-(void)upload {
     // a little bit of C because I was not able to make NSInputStream play nice
     CFWriteStreamRef writeStreamRef = CFWriteStreamCreateWithFTPURL(NULL, (CFURLRef)self.fullURL);
     streamInfo.writeStream = (NSOutputStream *)writeStreamRef;
@@ -379,20 +515,138 @@
         return;
     }
     
+    if (self.sentData==nil) {
+        NSLog(@"the sending data is nil my friend, you need to put up something");
+        [self.delegate requestFailed:self];
+        return;
+    }
+    
+    streamInfo.writeStream.delegate = self;
 	[streamInfo.writeStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
 	[streamInfo.writeStream open];
 }
 
+
+//stream delegate
+- (void)stream:(NSStream *)theStream handleEvent:(NSStreamEvent)streamEvent {
+    
+    switch (streamEvent) {
+        case NSStreamEventOpenCompleted: {
+            streamInfo.bytesConsumedInTotal = 0;            
+        } break;
+        case NSStreamEventHasBytesAvailable: {
+            
+        } break;
+        case NSStreamEventHasSpaceAvailable: {
+            
+            streamInfo.bytesConsumedThisIteration = [streamInfo.writeStream write:&((const uint8_t *)self.sentData.bytes)[streamInfo.bytesConsumedInTotal] maxLength:kWRDefaultBufferSize];
+            
+            if (streamInfo.bytesConsumedThisIteration!=-1) {
+                if (streamInfo.bytesConsumedInTotal + streamInfo.bytesConsumedThisIteration>=self.sentData.length) {
+                    [self.delegate requestCompleted:self]; 
+                    [self destroy];
+                    
+                    [self.sentData replaceBytesInRange:NSMakeRange(0, self.sentData.length) withBytes:NULL length:0];
+                }else{
+                    streamInfo.bytesConsumedInTotal += streamInfo.bytesConsumedThisIteration;
+                }
+            }else{
+                NSLog(@"Stream read failed. Abort!");
+                [self.delegate requestFailed:self];
+                [self destroy];
+            }
+            
+        } break;
+        case NSStreamEventErrorOccurred: {
+            NSLog(@"errror: %@", [theStream streamError]);
+            [self.delegate requestFailed:self];
+            [self destroy];
+        } break;
+            
+        case NSStreamEventEndEncountered: {
+            NSLog(@"Stream was intrerupted by server");
+            [self.delegate requestFailed:self];
+            [self destroy];
+        } break;
+    }
+}
+
+
+
 -(void) destroy{
     [super destroy];
     
+    [listrequest release];
+    [sentData release];
     [streamInfo.writeStream close];
     [streamInfo.writeStream removeFromRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
     [streamInfo.writeStream release];
-    streamInfo.writeStream = nil;
-    streamInfo.consumedBytes = 0;
-    streamInfo.leftoverBytes = 0;
+    streamInfo.writeStream = nil;    
+}
+
+@end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*======================================================WRRequestCreateDirectory============================================================*/
+
+@implementation WRRequestCreateDirectory
+
+-(WRRequestTypes)type {
+    return kWRCreateDirectoryRequest;
+}
+
+-(NSString *)path {
+    //  the path will always point to a directory, so we add the final slash to it (if there was one before escaping/standardizing, it's *gone* now)
+    return [[super path] stringByAppendingString:@"/"];
+}
+
+-(void) upload {
+    [super upload];
+    streamInfo.writeStream.delegate = self;
+}
+
+
+//stream delegate
+- (void)stream:(NSStream *)theStream handleEvent:(NSStreamEvent)streamEvent {
     
+    switch (streamEvent) {
+        case NSStreamEventOpenCompleted: {
+            
+        } break;
+        case NSStreamEventHasBytesAvailable: {
+        
+        } break;
+        case NSStreamEventHasSpaceAvailable: {
+            
+        } break;
+        case NSStreamEventErrorOccurred: {
+            NSLog(@"errror: %@", [theStream streamError]);
+            [self.delegate requestFailed:self];
+            [self destroy];
+        } break;
+        case NSStreamEventEndEncountered: {
+            [self.delegate requestCompleted:self];
+            [self destroy];
+        } break;
+    }
 }
 
 @end
@@ -440,10 +694,11 @@
         case NSStreamEventHasBytesAvailable: {
             
             
-            streamInfo.consumedBytes = [streamInfo.readStream read:streamInfo.buffer maxLength:kWRDefaultBufferSize];
+            streamInfo.bytesConsumedThisIteration = [streamInfo.readStream read:streamInfo.buffer maxLength:kWRDefaultBufferSize];
             
-            if (streamInfo.consumedBytes!=-1) {
-                if (streamInfo.consumedBytes==0) {
+            if (streamInfo.bytesConsumedThisIteration!=-1) {
+                if (streamInfo.bytesConsumedThisIteration==0) {
+                   [WRBase addFoldersToCache:self.filesInfo forParentFolderPath:self.path];  
                    [self.delegate requestCompleted:self]; 
                    [self destroy]; 
                 }else{
@@ -454,7 +709,7 @@
                         
                         CFDictionaryRef listingEntity = NULL;
                         
-                        parsedBytes = CFFTPCreateParsedResourceListing(NULL, &streamInfo.buffer[offset], streamInfo.consumedBytes - offset, &listingEntity);
+                        parsedBytes = CFFTPCreateParsedResourceListing(NULL, &streamInfo.buffer[offset], streamInfo.bytesConsumedThisIteration - offset, &listingEntity);
                         
                         if (parsedBytes > 0) {
                             if (listingEntity != NULL) {            
@@ -477,7 +732,7 @@
             
         } break;
         case NSStreamEventHasSpaceAvailable: {
-            NSLog(@"hasspce");
+            
         } break;
         case NSStreamEventErrorOccurred: {
             NSLog(@"errror: %@", [theStream streamError]);
