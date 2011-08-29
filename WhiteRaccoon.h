@@ -21,6 +21,15 @@
 //  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 //  THE SOFTWARE.
 
+
+
+#ifdef DEBUG
+#	define InfoLog(fmt, ...) NSLog((@"%s [Line %d] " fmt), __PRETTY_FUNCTION__, __LINE__, ##__VA_ARGS__);
+#else
+#	define InfoLog(...)
+#endif
+
+
 #import <Foundation/Foundation.h>
 #import <CFNetwork/CFNetwork.h>
 
@@ -91,6 +100,23 @@ typedef struct WRStreamInfo {
 
 
 
+
+
+/*======================================================WRQueueDelegate============================================================*/
+
+@protocol WRQueueDelegate  <WRRequestDelegate>
+
+@required
+-(void) queueCompleted:(WRRequestQueue *)queue;
+
+
+@end
+
+
+
+
+
+
 /*======================================================WRBase============================================================*/
 //Abstract class, do not instantiate
 @interface WRBase : NSObject {
@@ -108,6 +134,7 @@ typedef struct WRStreamInfo {
 @property (nonatomic, readonly) NSURL * fullURL;
 @property (nonatomic, retain) NSString * path;
 @property (nonatomic, assign) BOOL passive;
+@property (nonatomic, retain) WRRequestError * error;
 
 -(void) start;
 -(void) destroy;
@@ -134,7 +161,6 @@ typedef struct WRStreamInfo {
 
 @property (nonatomic, retain) WRRequest * nextRequest;
 @property (nonatomic, retain) WRRequest * prevRequest;
-@property (nonatomic, retain) WRRequestError * error;
 @property (nonatomic, readonly) WRRequestTypes type;
 @property (nonatomic, retain) id<WRRequestDelegate> delegate;
 
@@ -238,7 +264,7 @@ typedef struct WRStreamInfo {
     
 }
 
-@property (nonatomic, retain) id<WRRequestDelegate> delegate;
+@property (nonatomic, retain) id<WRQueueDelegate> delegate;
 
 -(void) addRequest:(WRRequest *) request;
 -(void) addRequestInFront:(WRRequest *) request;
@@ -252,7 +278,29 @@ typedef struct WRStreamInfo {
 
 
 
-
+typedef enum {
+    //client errors
+    kWRFTPClientHostnameIsNil = 901,
+    kWRFTPClientCantOpenStream = 902,
+    kWRFTPClientCantWriteStream = 903,
+    kWRFTPClientCantReadStream = 904,
+    kWRFTPClientSentDataIsNil = 905,    
+    kWRFTPClientFileAlreadyExists = 907,
+    kWRFTPClientCantOverwriteDirectory = 908,
+    
+    // 400 FTP errors
+    kWRFTPServerAbortedTransfer = 426,
+    kWRFTPServerResourceBusy = 450,
+    kWRFTPServerCantOpenDataConnection = 425,
+    
+    // 500 FTP errors
+    kWRFTPServerUserNotLoggedIn = 530,
+    kWRFTPServerFileNotAvailable = 550,
+    kWRFTPServerStorageAllocationExceeded = 552,
+    kWRFTPServerIllegalFileName = 553,
+    kWRFTPServerUnknownError
+    
+} WRErrorCodes;
 
 
 
@@ -263,8 +311,10 @@ typedef struct WRStreamInfo {
     
 }
 
-@property (nonatomic, retain) NSString * message;
+@property (nonatomic, assign) WRErrorCodes errorCode;
+@property (nonatomic, readonly) NSString * message;
 
+-(WRErrorCodes) errorCodeWithError:(NSError *) error;
 @end
 
 
