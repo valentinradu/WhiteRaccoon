@@ -182,20 +182,22 @@ static NSMutableDictionary *folders;
 -(void) addRequest:(WRRequest *) request{
     
     request.delegate = self;
-    request.passive = self.passive;
-    request.password = self.password;
-    request.username = self.username;
-    request.hostname = self.hostname;
+    if(!request.passive)request.passive = self.passive;
+    if(!request.password)request.password = self.password;
+    if(!request.username)request.username = self.username;
+    if(!request.hostname)request.hostname = self.hostname;
     
     if (tailRequest == nil){
         [request retain];
         tailRequest = request;
     }else{
+        [request retain];
+        
         
         tailRequest.nextRequest = request;
         request.prevRequest = tailRequest;
         
-        [request retain];
+        
         [tailRequest release];
         tailRequest = request;
     }
@@ -204,6 +206,32 @@ static NSMutableDictionary *folders;
         [tailRequest retain];
         headRequest = tailRequest;        
     }    
+}
+
+-(void) addRequestInFront:(WRRequest *) request {
+    request.delegate = self;
+    if(!request.passive)request.passive = self.passive;
+    if(!request.password)request.password = self.password;
+    if(!request.username)request.username = self.username;
+    if(!request.hostname)request.hostname = self.hostname;
+    
+    if (headRequest == nil) {
+        [request retain];
+        headRequest = request;
+    }else{
+        [request retain];
+        
+        headRequest.prevRequest = request;
+        request.nextRequest = headRequest;
+        
+        [headRequest release];
+        headRequest = request;
+    }
+    
+    if (tailRequest == nil) {
+        [headRequest retain];
+        tailRequest = headRequest;        
+    }
 }
 
 -(void) addRequestsFromArray: (NSArray *) array{
@@ -247,13 +275,13 @@ static NSMutableDictionary *folders;
 
 -(void) requestCompleted:(WRRequest *) request {
     
+    [self.delegate requestCompleted:request];
+    
     [headRequest.nextRequest retain];
     [headRequest release];
     headRequest = headRequest.nextRequest;
     
     [headRequest start];
-    
-    [self.delegate requestCompleted:request];
 }
 
 -(void) requestFailed:(WRRequest *) request{
@@ -515,7 +543,7 @@ static NSMutableDictionary *folders;
         return;
     }
     
-    if (self.sentData==nil) {
+    if (self.sentData==nil&&self.type==kWRUploadRequest) {
         NSLog(@"the sending data is nil my friend, you need to put up something");
         [self.delegate requestFailed:self];
         return;

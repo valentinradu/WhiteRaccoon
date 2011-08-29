@@ -241,6 +241,7 @@ typedef struct WRStreamInfo {
 @property (nonatomic, retain) id<WRRequestDelegate> delegate;
 
 -(void) addRequest:(WRRequest *) request;
+-(void) addRequestInFront:(WRRequest *) request;
 -(void) addRequestsFromArray: (NSArray *) array;
 -(void) removeRequestFromQueue:(WRRequest *) request;
 
