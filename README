@@ -24,7 +24,7 @@ THE SOFTWARE.
 
 Usage
 
-You can use WhiteRaccoon in one of two ways. Either make a simple request or add several requests to a queue that will call them one after another.
+You can use WhiteRaccoon in one of two ways. Either make a simple request or add several requests to a queue.
 
 
 Queue usage
