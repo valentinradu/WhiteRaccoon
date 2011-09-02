@@ -486,6 +486,65 @@ static NSMutableDictionary *folders;
 
 
 
+/*======================================================WRRequestDelete============================================================*/
+
+@implementation WRRequestDelete
+
+-(WRRequestTypes)type {
+    return kWRDeleteRequest;
+}
+
+-(NSString *)path {
+    
+    NSString * lastCharacter = [path substringFromIndex:[path length] - 1];
+    isDirectory = ([lastCharacter isEqualToString:@"/"]);
+    
+    if (!isDirectory) return [super path];
+    
+    NSString * directoryPath = [super path];
+    if (![directoryPath isEqualToString:@""]) {
+        directoryPath = [directoryPath stringByAppendingString:@"/"];
+    }
+    return directoryPath;
+}
+
+-(void) start{
+    
+    if (self.hostname==nil) {
+        InfoLog(@"The host name is nil!");
+        self.error = [[[WRRequestError alloc] init] autorelease];
+        self.error.errorCode = kWRFTPClientHostnameIsNil;
+        [self.delegate requestFailed:self];
+        return;
+    }
+    
+    CFURLDestroyResource((CFURLRef)self.fullURL, NULL);
+}
+
+-(void) destroy{
+    [super destroy];  
+}
+
+-(void)dealloc {
+    [super dealloc];
+}
+
+@end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /*======================================================WRRequestUpload============================================================*/
 
@@ -512,7 +571,7 @@ static NSMutableDictionary *folders;
     
     //we first list the directory to see if our folder is up already
     
-    self.listrequest = [[[WRRequestListDir alloc] init] autorelease];    
+    self.listrequest = [[[WRRequestListDirectory alloc] init] autorelease];    
     self.listrequest.path = [self.path stringByDeletingLastPathComponent];
     self.listrequest.hostname = self.hostname;
     self.listrequest.username = self.username;
@@ -536,7 +595,7 @@ static NSMutableDictionary *folders;
     
     if (fileAlreadyExists) {
         if (![self.delegate shouldOverwriteFileWithRequest:self]) {
-            InfoLog(@"There is already a file/folder with that name and you decided not to overwrite!");
+            InfoLog(@"There is already a file/folder with that name and the delegate decided not to overwrite!");
             self.error = [[[WRRequestError alloc] init] autorelease];
             self.error.errorCode = kWRFTPClientFileAlreadyExists;
             [self.delegate requestFailed:self];
@@ -606,7 +665,7 @@ static NSMutableDictionary *folders;
         } break;
         case NSStreamEventHasSpaceAvailable: {
             
-            streamInfo.bytesConsumedThisIteration = [streamInfo.writeStream write:&((const uint8_t *)self.sentData.bytes)[streamInfo.bytesConsumedInTotal] maxLength:kWRDefaultBufferSize];
+            streamInfo.bytesConsumedThisIteration = [streamInfo.writeStream write:&((const uint8_t *)self.sentData.bytes)[streamInfo.bytesConsumedInTotal] maxLength:MIN(kWRDefaultBufferSize, self.sentData.length)];
             
             if (streamInfo.bytesConsumedThisIteration!=-1) {
                 if (streamInfo.bytesConsumedInTotal + streamInfo.bytesConsumedThisIteration<=self.sentData.length) {
@@ -694,7 +753,7 @@ static NSMutableDictionary *folders;
     //  the path will always point to a directory, so we add the final slash to it (if there was one before escaping/standardizing, it's *gone* now)
     NSString * directoryPath = [super path];
     if (![directoryPath isEqualToString:@""]) {
-        [directoryPath stringByAppendingString:@"/"];
+        directoryPath = [directoryPath stringByAppendingString:@"/"];
     }
     return directoryPath;
 }
@@ -761,7 +820,7 @@ static NSMutableDictionary *folders;
 
 /*======================================================WRRequestListDir============================================================*/
 
-@implementation WRRequestListDir
+@implementation WRRequestListDirectory
 @synthesize filesInfo;
 
 
@@ -773,7 +832,7 @@ static NSMutableDictionary *folders;
     //  the path will always point to a directory, so we add the final slash to it (if there was one before escaping/standardizing, it's *gone* now)
     NSString * directoryPath = [super path];
     if (![directoryPath isEqualToString:@""]) {
-        [directoryPath stringByAppendingString:@"/"];
+        directoryPath = [directoryPath stringByAppendingString:@"/"];
     }
     return directoryPath;
 }
@@ -790,6 +849,7 @@ static NSMutableDictionary *folders;
     // a little bit of C because I was not able to make NSInputStream play nice
     CFReadStreamRef readStreamRef = CFReadStreamCreateWithFTPURL(NULL, (CFURLRef)self.fullURL);
     streamInfo.readStream = (NSInputStream *)readStreamRef;
+    
     
     if (streamInfo.readStream==nil) {
         InfoLog(@"Can't open the write stream! Possibly wrong URL!");
@@ -981,7 +1041,7 @@ static NSMutableDictionary *folders;
 
 
 -(WRErrorCodes) errorCodeWithError:(NSError *) error {
-    NSLog(@"%@", error);
+    //NSLog(@"%@", error);
     return 0;
 }
 

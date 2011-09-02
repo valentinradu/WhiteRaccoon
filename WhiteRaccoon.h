@@ -36,13 +36,14 @@
 @class WRRequest;
 @class WRRequestQueue;
 @class WRRequestError;
-@class WRRequestListDir;
+@class WRRequestListDirectory;
 
 /*======================================================Global Constants, Variables, Structs and Enums============================================================*/
 
 typedef enum {
     kWRUploadRequest,
 	kWRDownloadRequest,
+    kWRDeleteRequest,
     kWRCreateDirectoryRequest,
 	kWRListDirectoryRequest
 } WRRequestTypes;
@@ -199,11 +200,27 @@ typedef struct WRStreamInfo {
     
 }
 
-@property (nonatomic, retain) WRRequestListDir * listrequest;
+@property (nonatomic, retain) WRRequestListDirectory * listrequest;
 @property (nonatomic, retain) NSMutableData * sentData;
 
 @end
 
+
+
+
+
+
+
+
+
+
+/*======================================================WRRequestDelete============================================================*/
+
+@interface WRRequestDelete : WRRequest<NSStreamDelegate> {
+    BOOL isDirectory;
+}
+
+@end
 
 
 
@@ -232,7 +249,7 @@ typedef struct WRStreamInfo {
 
 /*======================================================WRRequestListDir============================================================*/
 
-@interface WRRequestListDir : WRRequestDownload<NSStreamDelegate> {
+@interface WRRequestListDirectory : WRRequestDownload<NSStreamDelegate> {
    
 }
 
