@@ -7,7 +7,7 @@ WhiteRaccoon supports the following FTP operations:
 
 *   Download file
 *   Upload file (if the file is already on the server the delegate 
-    will be asked if the file can be overwritten)
+    will be asked if the file should be overwritten)
 *   Delete file
 *   Delete directory (only if the directory is empty)
 *   Create directory
@@ -20,21 +20,174 @@ WhiteRaccoon supports the following FTP operations:
 ### Simple usage
 
 
+#### Download file
+
+        - download
+        {
+
+            //we don't autorelease the object so that it will be around when the callback gets called
+            //this is not a good practice, in real life development you should use a retain property to store a reference to the request
+            WRRequestDownload * downloadFile = [[WRRequestDownload alloc] init];
+            downloadFile.delegate = self;
+            
+            //the path needs to be absolute to the FTP root folder.
+            //full URL would be ftp://xxx.xxx.xxx.xxx/space.jpg
+            downloadFile.path = @"/space.jpg";
+
+            //for anonymous login just leave the username and password nil
+            downloadFile.hostname = @"xxx.xxx.xxx.xxx";
+            downloadFile.username = @"myuser";
+            downloadFile.password = @"mypass";
+
+            //we start the request
+            [downloadFile start];
+
+        }
+
+        -(void) requestCompleted:(WRRequest *) request{
+            //called after 'request' is completed successfully
+            NSLog(@"%@ completed!", request);
+
+            //we cast the request to download request
+            WRRequestDownload * downloadFile = (WRRequestDownload *)request;
+
+            //we get the image from the data
+            UIImage * image = [UIImage imageWithData:downloadFile.receivedData];
+        }
+
+        -(void) requestFailed:(WRRequest *) request{
+            //called after 'request' ends in error
+            //we can print the error message
+            NSLog(@"%@", request.error.message);
+        }
+
+
+#### Upload file
+
+        - upload
+        {
+
+            //the upload request needs the input data to be NSData 
+            //so we first convert the image to NSData
+            UIImage * ourImage = [UIImage imageNamed:@"space.jpg"];
+            NSData * ourImageData = UIImageJPEGRepresentation(ourImage, 100);
+
+
+            //we create the upload request
+            //we don't autorelease the object so that it will be around when the callback gets called
+            //this is not a good practice, in real life development you should use a retain property to store a reference to the request
+            WRRequestUpload * uploadImage = [[WRRequestUpload alloc] init];
+            uploadImage.delegate = self;
+
+            //for anonymous login just leave the username and password nil
+            uploadImage.hostname = @"xxx.xxx.xxx.xxx";
+            uploadImage.username = @"myuser";
+            uploadImage.password = @"mypass";
+            
+            //we set our data to be the date we got from the image
+            uploadImage.sentData = [[ourImageData mutableCopy] autorelease];
+            
+            //the path needs to be absolute to the FTP root folder.
+            //full URL would be ftp://xxx.xxx.xxx.xxx/space.jpg
+            uploadImage.path = @"/space.jpg";
+
+            //we start the request
+            [uploadImage start];
+
+        }
+
+        -(void) requestCompleted:(WRRequest *) request{
+
+            //called if 'request' is completed successfully
+            NSLog(@"%@ completed!", request);
+
+        }
+
+        -(void) requestFailed:(WRRequest *) request{
+
+            //called after 'request' ends in error
+            //we can print the error message
+            NSLog(@"%@", request.error.message);
+
+        }
+
+        -(BOOL) shouldOverwriteFileWithRequest:(WRRequest *)request {
+
+            //if the file is already on the FTP server,the delegate is asked if the file should be overwritten 
+            //'request' is the request that intended to create the file
+            return YES;
+
+        }
+
+
+#### List directory contents
+
+        - listDirectoryContents
+        {
+
+            //we don't autorelease the object so that it will be around when the callback gets called
+            //this is not a good practice, in real life development you should use a retain property to store a reference to the request
+            WRRequestListDirectory * listDir = [[WRRequestListDirectory alloc] init];
+            listDir.delegate = self;
+            
+            
+            //the path needs to be absolute to the FTP root folder.
+            //if we want to list the root folder we let the path nil or /
+            //full URL would be ftp://xxx.xxx.xxx.xxx/
+            listDir.path = @"/";
+
+            listDir.hostname = @"xxx.xxx.xxx.xxx";
+            listDir.username = @"myuser";
+            listDir.password = @"mypass";
+
+
+            [listDir start];
+
+        }
+
+        -(void) requestCompleted:(WRRequest *) request{
+
+            //called after 'request' is completed successfully
+            NSLog(@"%@ completed!", request);
+
+            //we cast the request to list request
+            WRRequestListDirectory * listDir = (WRRequestListDirectory *)request;
+
+            //we print all each of the contents name
+            for (NSDictionary * file in listDir.filesInfo) {
+                //for a complete list of keys that 'file' dictionary has have a look [here](http://developer.apple.com/library/mac/documentation/CoreFoundation/Reference/CFFTPStreamRef/Reference/reference.html#//apple_ref/doc/c_ref/kCFFTPResourceMode)
+                NSLog(@"%@", [file objectForKey:(id)kCFFTPResourceName]);
+            
+            }
+
+        }
+
+        -(void) requestFailed:(WRRequest *) request{
+        
+            //called if 'request' ends in error
+            //we can print the error message
+            NSLog(@"%@", request.error.message);
+
+        }
+
+
 #### Delete file or directory
 
         - deleteFileOrDirectory
         {
 
-            //we can safely autorelease the request object because the queue takes ownership of it in addRequest: method
-            WRRequestDelete * deleteDir = [[[WRRequestDelete alloc] init] autorelease];
+            //we don't autorelease the object so that it will be around when the callback gets called
+            //this is not a good practice, in real life development you should use a retain property to store a reference to the request
+            WRRequestDelete * deleteDir = [[WRRequestDelete alloc] init];
 
             //the path needs to be absolute to the FTP root folder.
             //if we are want to delete a directory we have to end the path with / and make sure the directory is empty
+            //full URL would be ftp://xxx.xxx.xxx.xxx/dummyDir/
             deleteDir.path = @"/dummyDir/";
 
-            createDir.hostname = @"xxx.xxx.xxx.xxx";
-            createDir.username = @"myuser";
-            createDir.password = @"mypass";
+            deleteDir.hostname = @"xxx.xxx.xxx.xxx";
+            deleteDir.username = @"myuser";
+            deleteDir.password = @"mypass";
 
             //we start the request
             [deleteDir start];
@@ -47,13 +200,15 @@ WhiteRaccoon supports the following FTP operations:
         - createDirectory
         {
 
-            //we can safely autorelease the request object because the queue takes ownership of it in addRequest: method
-            WRRequestCreateDirectory * createDir = [[[WRRequestCreateDirectory alloc] init] autorelease];
+            //we don't autorelease the object so that it will be around when the callback gets called
+            //this is not a good practice, in real life development you should use a retain property to store a reference to the request
+            WRRequestCreateDirectory * createDir = [[WRRequestCreateDirectory alloc] init];
 
             //we set self as delegate, we must implement WRRequestDelegate
             createDir.delegate = self;
 
-            //the path needs to be absolute to the FTP root folder. 
+            //the path needs to be absolute to the FTP root folder.
+            //full URL would be ftp://xxx.xxx.xxx.xxx/dummyDir/
             createDir.path = @"/dummyDir/";
 
             createDir.hostname = @"xxx.xxx.xxx.xxx";
@@ -94,6 +249,7 @@ Here is how you can use a queue request to create a directory and then add an im
         {
 
             //we alloc and init the our request queue
+            //we don't autorelease the object so that it will be around when the callback gets called
             WRRequestQueue * requestsQueue = [[WRRequestQueue alloc] init];
 
             //we set the delegate to self
@@ -114,7 +270,11 @@ Here is how you can use a queue request to create a directory and then add an im
             //we first create a directory
             //we can safely autorelease the request object because the queue takes ownership of it in addRequest: method
             WRRequestCreateDirectory * createDir = [[[WRRequestCreateDirectory alloc] init] autorelease];
+
+            //the path needs to be absolute to the FTP root folder.
+            //full URL would be ftp://xxx.xxx.xxx.xxx/dummyDir/
             createDir.path = @"/dummyDir/";
+
             [requestsQueue addRequest:createDir];
 
 
@@ -128,8 +288,14 @@ Here is how you can use a queue request to create a directory and then add an im
             //we create the upload request
             WRRequestUpload * uploadImage = [[[WRRequestUpload alloc] init] autorelease];
             uploadImage.sentData = [[ourImageData mutableCopy] autorelease];
+
+
             //we put the file in the directory we created with the previous request
+            //the path needs to be absolute to the FTP root folder.
+            //full URL would be ftp://xxx.xxx.xxx.xxx/dummyDir/image.jpg
             uploadImage.path = @"/dummyDir/image.jpg";
+
+
             [requestsQueue addRequest:uploadImage];
 
             //we start the request queue
@@ -162,8 +328,8 @@ Here is how you can use a queue request to create a directory and then add an im
 
         -(BOOL) shouldOverwriteFileWithRequest:(WRRequest *)request {
 
-            //asks the delegate if it should overwrite a certain file
-            //'request' is the request the intended to create the file that is already on server
+            //if the file is already on the FTP server,the delegate is asked if the file should be overwritten 
+            //'request' is the request that intended to create the file
             return YES;
 
         }
