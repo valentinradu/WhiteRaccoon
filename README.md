@@ -4,17 +4,19 @@ You can use WhiteRaccoon to interact with FTP servers in one of two ways: either
 
 
 WhiteRaccoon supports the following FTP operations:
-*Download file
-*Upload file (if the file is already on the server the delegate will be asked if the file can be overwritten)
-*Delete file
-*Delete directory (only if the directory is empty)
-*Create directory
-*List directory contents (returns an array of dictionaries, each of the dictionaries has the keys described [here](http://developer.apple.com/library/mac/documentation/CoreFoundation/Reference/CFFTPStreamRef/Reference/reference.html#//apple_ref/doc/c_ref/kCFFTPResourceMode)
+*   Download file
+*   Upload file (if the file is already on the server the delegate will be asked if the file can be overwritten)
+*   Delete file
+*   Delete directory (only if the directory is empty)
+*   Create directory
+*   List directory contents (returns an array of dictionaries, each of the dictionaries has the keys described [here](http://developer.apple.com/library/mac/documentation/CoreFoundation/Reference/CFFTPStreamRef/Reference/reference.html#//apple_ref/doc/c_ref/kCFFTPResourceMode)
 
 
 ### Simple usage
 
 #### Download file
+
+
 
 
 
