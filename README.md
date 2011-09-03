@@ -84,7 +84,7 @@ WhiteRaccoon supports the following FTP operations:
             uploadImage.username = @"myuser";
             uploadImage.password = @"mypass";
             
-            //we set our data to be the date we got from the image
+            //we set our data
             uploadImage.sentData = [[ourImageData mutableCopy] autorelease];
             
             //the path needs to be absolute to the FTP root folder.
@@ -113,7 +113,7 @@ WhiteRaccoon supports the following FTP operations:
 
         -(BOOL) shouldOverwriteFileWithRequest:(WRRequest *)request {
 
-            //if the file is already on the FTP server,the delegate is asked if the file should be overwritten 
+            //if the file (ftp://xxx.xxx.xxx.xxx/space.jpg) is already on the FTP server,the delegate is asked if the file should be overwritten 
             //'request' is the request that intended to create the file
             return YES;
 
@@ -121,6 +121,8 @@ WhiteRaccoon supports the following FTP operations:
 
 
 #### List directory contents
+
+The file dictionary has several keys that describe most of the properties a file can have, from name to size. For a complete list of keys that the file dictionary has have a look [here](http://developer.apple.com/library/mac/documentation/CoreFoundation/Reference/CFFTPStreamRef/Reference/reference.html#//apple_ref/doc/c_ref/kCFFTPResourceMode)
 
         - listDirectoryContents
         {
@@ -153,11 +155,9 @@ WhiteRaccoon supports the following FTP operations:
             //we cast the request to list request
             WRRequestListDirectory * listDir = (WRRequestListDirectory *)request;
 
-            //we print all each of the contents name
+            //we print each of the files name
             for (NSDictionary * file in listDir.filesInfo) {
-                //for a complete list of keys that 'file' dictionary has have a look [here](http://developer.apple.com/library/mac/documentation/CoreFoundation/Reference/CFFTPStreamRef/Reference/reference.html#//apple_ref/doc/c_ref/kCFFTPResourceMode)
-                NSLog(@"%@", [file objectForKey:(id)kCFFTPResourceName]);
-            
+                NSLog(@"%@", [file objectForKey:(id)kCFFTPResourceName]);            
             }
 
         }
@@ -328,7 +328,7 @@ Here is how you can use a queue request to create a directory and then add an im
 
         -(BOOL) shouldOverwriteFileWithRequest:(WRRequest *)request {
 
-            //if the file is already on the FTP server,the delegate is asked if the file should be overwritten 
+            //if the file (ftp://xxx.xxx.xxx.xxx/dummyDir/image.jpg) is already on the FTP server,the delegate is asked if the file should be overwritten 
             //'request' is the request that intended to create the file
             return YES;
 
