@@ -11,8 +11,8 @@ WhiteRaccoon supports the following FTP operations:
 *   Delete file
 *   Delete directory (only if the directory is empty)
 *   Create directory
-*   List directory contents (returns an array of dictionaries, each 
-    of the dictionaries has the keys described [here](http://developer.apple.com/library/mac/documentation/CoreFoundation/Reference/CFFTPStreamRef/Reference/reference.html#//apple_ref/doc/c_ref/kCFFTPResourceMode)
+*   List directory contents (returns an array of dictionaries, each dictionary
+    has the keys described [here](http://developer.apple.com/library/mac/documentation/CoreFoundation/Reference/CFFTPStreamRef/Reference/reference.html#//apple_ref/doc/c_ref/kCFFTPResourceMode)
 
 
 
