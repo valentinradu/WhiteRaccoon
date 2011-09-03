@@ -22,16 +22,31 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 
-Usage
+# General notes
 
-You can use WhiteRaccoon in one of two ways. Either make a simple request or add several requests to a queue.
+You can use WhiteRaccoon to interact with FTP servers in one of two ways: either make a simple request and send it right away to the FTP server or add several requests to a queue and the queue will send them one by one in the order in which they were added.
 
 
-Queue usage
+WhiteRaccoon supports the following FTP operations:
+*Download file
+*Upload file (if the file is already on the server the delegate will be asked if the file can be overwritten)
+*Delete file
+*Delete directory (only if the directory is empty)
+*Create directory
+*List directory contents (returns an array of dictionaries, each of the dictionaries has the keys described [here](http://developer.apple.com/library/mac/documentation/CoreFoundation/Reference/CFFTPStreamRef/Reference/reference.html#//apple_ref/doc/c_ref/kCFFTPResourceMode)
 
-Here is how you can use a a queue to create a directory and then add a image in it.
 
-- upload
+# Simple usage
+
+## Download file
+
+
+
+# Queue usage
+
+Here is how you can use a queue request to create a directory and then add an image in it.
+
+`- upload
 {
 
     //we alloc and init the our request queue
@@ -96,4 +111,4 @@ Here is how you can use a a queue to create a directory and then add a image in 
     //asks the delegate if it should overwrite a certain file
     //'request' is the request the intended to create the file that is already on server
     return YES;
-}
+}`
