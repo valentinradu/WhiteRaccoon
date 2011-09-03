@@ -15,9 +15,72 @@ WhiteRaccoon supports the following FTP operations:
     of the dictionaries has the keys described [here](http://developer.apple.com/library/mac/documentation/CoreFoundation/Reference/CFFTPStreamRef/Reference/reference.html#//apple_ref/doc/c_ref/kCFFTPResourceMode)
 
 
+
+
 ### Simple usage
 
-#### Download file
+
+#### Delete file or directory
+
+        - deleteFileOrDirectory
+        {
+
+            //we can safely autorelease the request object because the queue takes ownership of it in addRequest: method
+            WRRequestDelete * deleteDir = [[[WRRequestDelete alloc] init] autorelease];
+
+            //the path needs to be absolute to the FTP root folder.
+            //if we are want to delete a directory we have to end the path with / and make sure the directory is empty
+            deleteDir.path = @"/dummyDir/";
+
+            createDir.hostname = @"xxx.xxx.xxx.xxx";
+            createDir.username = @"myuser";
+            createDir.password = @"mypass";
+
+            //we start the request
+            [deleteDir start];
+
+        }
+
+
+#### Create directory
+
+        - createDirectory
+        {
+
+            //we can safely autorelease the request object because the queue takes ownership of it in addRequest: method
+            WRRequestCreateDirectory * createDir = [[[WRRequestCreateDirectory alloc] init] autorelease];
+
+            //we set self as delegate, we must implement WRRequestDelegate
+            createDir.delegate = self;
+
+            //the path needs to be absolute to the FTP root folder. 
+            createDir.path = @"/dummyDir/";
+
+            createDir.hostname = @"xxx.xxx.xxx.xxx";
+            createDir.username = @"myuser";
+            createDir.password = @"mypass";
+
+            //we start the request
+            [createDir start];
+
+        }
+
+        -(void) requestCompleted:(WRRequest *) request{
+
+            //called if 'request' is completed successfully
+            NSLog(@"%@ completed!", request);
+
+        }
+
+        -(void) requestFailed:(WRRequest *) request{
+
+            //called if 'request' ends in error
+            //we can print the error message
+            NSLog(@"%@", request.error.message);
+
+        }
+
+
 
 
 
@@ -45,7 +108,7 @@ Here is how you can use a queue request to create a directory and then add an im
 
 
             //and now, we start to create our requests and add them to the queue
-            //the requests will be executed in the order in which you add them, one by one
+            //the requests will be executed in the order in which they were added, one by one
 
 
             //we first create a directory
@@ -61,6 +124,8 @@ Here is how you can use a queue request to create a directory and then add an im
             UIImage * ourImage = [UIImage imageNamed:@"space.jpg"];
             NSData * ourImageData = UIImageJPEGRepresentation(ourImage, 100);
 
+
+            //we create the upload request
             WRRequestUpload * uploadImage = [[[WRRequestUpload alloc] init] autorelease];
             uploadImage.sentData = [[ourImageData mutableCopy] autorelease];
             //we put the file in the directory we created with the previous request
@@ -69,27 +134,36 @@ Here is how you can use a queue request to create a directory and then add an im
 
             //we start the request queue
             [requestsQueue start];
+
         }
 
         -(void) queueCompleted:(WRRequestQueue *)queue {
+
             //this will get called when all the requests are done
             //even if one or more requests end in error, this will still be called after the rest are completed
             NSLog(@"Done.");
+
         }
 
         -(void) requestCompleted:(WRRequest *) request{
+
             //called after 'request' is completed successfully
-            NSLog(@"%@ completed!", request); 
+            NSLog(@"%@ completed!", request);
+
         }
 
         -(void) requestFailed:(WRRequest *) request{
+
             //called after 'request' ends in error
             //we can print the error message
             NSLog(@"%@", request.error.message);
+
         }
 
         -(BOOL) shouldOverwriteFileWithRequest:(WRRequest *)request {
+
             //asks the delegate if it should overwrite a certain file
             //'request' is the request the intended to create the file that is already on server
             return YES;
+
         }
