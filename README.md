@@ -85,7 +85,7 @@ WhiteRaccoon supports the following FTP operations:
             uploadImage.password = @"mypass";
             
             //we set our data
-            uploadImage.sentData = [[ourImageData mutableCopy] autorelease];
+            uploadImage.sentData = ourImageData;
             
             //the path needs to be absolute to the FTP root folder.
             //full URL would be ftp://xxx.xxx.xxx.xxx/space.jpg
@@ -287,7 +287,7 @@ Here is how you can use a queue request to create a directory and then add an im
 
             //we create the upload request
             WRRequestUpload * uploadImage = [[[WRRequestUpload alloc] init] autorelease];
-            uploadImage.sentData = [[ourImageData mutableCopy] autorelease];
+            uploadImage.sentData = ourImageData;
 
 
             //we put the file in the directory we created with the previous request

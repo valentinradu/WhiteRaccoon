@@ -59,6 +59,11 @@ typedef enum {
 } WRBufferSizes;
 
 
+typedef enum {
+    kWRDefaultTimeout = 10
+} WRTimeouts;
+
+
 typedef struct WRStreamInfo {
     
     NSOutputStream    *writeStream;    
@@ -158,6 +163,7 @@ typedef struct WRStreamInfo {
 @interface WRRequest : WRBase {
     @protected
     WRStreamInfo streamInfo;
+    BOOL didManagedToOpenStream;
 }
 
 @property (nonatomic, retain) WRRequest * nextRequest;
@@ -181,7 +187,7 @@ typedef struct WRStreamInfo {
   
 }
 
-@property (nonatomic, retain) NSMutableData * receivedData;
+@property (nonatomic, retain) NSData * receivedData;
 
 @end
 
@@ -201,7 +207,7 @@ typedef struct WRStreamInfo {
 }
 
 @property (nonatomic, retain) WRRequestListDirectory * listrequest;
-@property (nonatomic, retain) NSMutableData * sentData;
+@property (nonatomic, retain) NSData * sentData;
 
 @end
 
@@ -253,7 +259,7 @@ typedef struct WRStreamInfo {
    
 }
 
-@property (nonatomic, retain) NSMutableArray * filesInfo;
+@property (nonatomic, retain) NSArray * filesInfo;
 
 
 @end
@@ -304,6 +310,7 @@ typedef enum {
     kWRFTPClientSentDataIsNil = 905,    
     kWRFTPClientFileAlreadyExists = 907,
     kWRFTPClientCantOverwriteDirectory = 908,
+    kWRFTPClientStreamTimedOut = 909,
     
     // 400 FTP errors
     kWRFTPServerAbortedTransfer = 426,

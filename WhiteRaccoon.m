@@ -344,7 +344,17 @@ static NSMutableDictionary *folders;
 @implementation WRRequest
 @synthesize type, nextRequest, prevRequest, delegate;
 
+- (id)init {
+    self = [super init];
+    if (self) {
+        streamInfo.bytesConsumedThisIteration = 0;
+        streamInfo.bytesConsumedInTotal = 0;
+    }
+    return self;
+}
+
 -(void)destroy {
+    [super destroy];
     streamInfo.bytesConsumedThisIteration = 0;
     streamInfo.bytesConsumedInTotal = 0;
 }
@@ -410,6 +420,17 @@ static NSMutableDictionary *folders;
     streamInfo.readStream.delegate = self;
 	[streamInfo.readStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
 	[streamInfo.readStream open];
+    
+    didManagedToOpenStream = NO;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, kWRDefaultTimeout * NSEC_PER_SEC), dispatch_get_current_queue(), ^{
+        if (!didManagedToOpenStream&&self.error==nil) {
+            InfoLog(@"No response from the server. Timeout.");
+            self.error = [[[WRRequestError alloc] init] autorelease];
+            self.error.errorCode = kWRFTPClientStreamTimedOut;
+            [self.delegate requestFailed:self];
+            [self destroy];
+        }
+    });
 }
 
 //stream delegate
@@ -417,6 +438,7 @@ static NSMutableDictionary *folders;
     
     switch (streamEvent) {
         case NSStreamEventOpenCompleted: {
+            didManagedToOpenStream = YES;
             streamInfo.bytesConsumedInTotal = 0;
             self.receivedData = [NSMutableData data];
         } break;
@@ -425,8 +447,15 @@ static NSMutableDictionary *folders;
             streamInfo.bytesConsumedThisIteration = [streamInfo.readStream read:streamInfo.buffer maxLength:kWRDefaultBufferSize];
             
             if (streamInfo.bytesConsumedThisIteration!=-1) {
-                if (streamInfo.bytesConsumedThisIteration!=0) {  
-                    [self.receivedData appendBytes:streamInfo.buffer length:streamInfo.bytesConsumedThisIteration];  
+                if (streamInfo.bytesConsumedThisIteration!=0) {
+                    
+                    NSMutableData * recivedDataWithNewBytes = [self.receivedData mutableCopy];                    
+                    [recivedDataWithNewBytes appendBytes:streamInfo.buffer length:streamInfo.bytesConsumedThisIteration];
+                    
+                    self.receivedData = [NSData dataWithData:recivedDataWithNewBytes];
+                    
+                    [recivedDataWithNewBytes release];
+                    
                 }
             }else{
                 InfoLog(@"Stream opened, but failed while trying to read from it.");
@@ -649,7 +678,18 @@ static NSMutableDictionary *folders;
         [streamInfo.writeStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
         [streamInfo.writeStream open];
     }
-        
+    
+    
+    didManagedToOpenStream = NO;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, kWRDefaultTimeout * NSEC_PER_SEC), dispatch_get_current_queue(), ^{
+        if (!didManagedToOpenStream&&self.error==nil) {
+            InfoLog(@"No response from the server. Timeout.");
+            self.error = [[[WRRequestError alloc] init] autorelease];
+            self.error.errorCode = kWRFTPClientStreamTimedOut;
+            [self.delegate requestFailed:self];
+            [self destroy];
+        }
+    });
 }
 
 
@@ -658,6 +698,7 @@ static NSMutableDictionary *folders;
     
     switch (streamEvent) {
         case NSStreamEventOpenCompleted: {
+            didManagedToOpenStream = YES;
             streamInfo.bytesConsumedInTotal = 0;            
         } break;
         case NSStreamEventHasBytesAvailable: {
@@ -665,14 +706,22 @@ static NSMutableDictionary *folders;
         } break;
         case NSStreamEventHasSpaceAvailable: {
             
-            streamInfo.bytesConsumedThisIteration = [streamInfo.writeStream write:&((const uint8_t *)self.sentData.bytes)[streamInfo.bytesConsumedInTotal] maxLength:MIN(kWRDefaultBufferSize, self.sentData.length)];
+            uint8_t * nextPackage;
+            NSUInteger nextPackageLength = MIN(kWRDefaultBufferSize, self.sentData.length-streamInfo.bytesConsumedInTotal);
+            
+            nextPackage = malloc(nextPackageLength);
+            
+            [self.sentData getBytes:nextPackage range:NSMakeRange(streamInfo.bytesConsumedInTotal, nextPackageLength)];            
+            streamInfo.bytesConsumedThisIteration = [streamInfo.writeStream write:nextPackage maxLength:nextPackageLength];
+            
+            free(nextPackage);
             
             if (streamInfo.bytesConsumedThisIteration!=-1) {
-                if (streamInfo.bytesConsumedInTotal + streamInfo.bytesConsumedThisIteration<=self.sentData.length) {
+                if (streamInfo.bytesConsumedInTotal + streamInfo.bytesConsumedThisIteration<self.sentData.length) {
                     streamInfo.bytesConsumedInTotal += streamInfo.bytesConsumedThisIteration;
                 }else{
                     [self.delegate requestCompleted:self]; 
-                    [self.sentData replaceBytesInRange:NSMakeRange(0, self.sentData.length) withBytes:NULL length:0];
+                    self.sentData =nil;
                     [self destroy];
                 }
             }else{
@@ -773,6 +822,17 @@ static NSMutableDictionary *folders;
     streamInfo.writeStream.delegate = self;
     [streamInfo.writeStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
     [streamInfo.writeStream open];
+    
+    didManagedToOpenStream = NO;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, kWRDefaultTimeout * NSEC_PER_SEC), dispatch_get_current_queue(), ^{
+        if (!didManagedToOpenStream&&self.error==nil) {
+            InfoLog(@"No response from the server. Timeout.");
+            self.error = [[[WRRequestError alloc] init] autorelease];
+            self.error.errorCode = kWRFTPClientStreamTimedOut;
+            [self.delegate requestFailed:self];
+            [self destroy];
+        }
+    });
 }
 
 
@@ -781,7 +841,7 @@ static NSMutableDictionary *folders;
     
     switch (streamEvent) {
         case NSStreamEventOpenCompleted: {
-            
+            didManagedToOpenStream = YES;
         } break;
         case NSStreamEventHasBytesAvailable: {
         
@@ -863,6 +923,18 @@ static NSMutableDictionary *folders;
     streamInfo.readStream.delegate = self;
 	[streamInfo.readStream scheduleInRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
 	[streamInfo.readStream open];
+    
+    didManagedToOpenStream = NO;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, kWRDefaultTimeout * NSEC_PER_SEC), dispatch_get_current_queue(), ^{
+        if (!didManagedToOpenStream&&self.error==nil) {
+            InfoLog(@"No response from the server. Timeout.");
+            self.error = [[[WRRequestError alloc] init] autorelease];
+            self.error.errorCode = kWRFTPClientStreamTimedOut;
+            [self.delegate requestFailed:self];
+            [self destroy];
+        }
+    });
+
 }
 
 //stream delegate
@@ -871,6 +943,7 @@ static NSMutableDictionary *folders;
     switch (streamEvent) {
         case NSStreamEventOpenCompleted: {
 			self.filesInfo = [NSMutableArray array];
+            didManagedToOpenStream = YES;
         } break;
         case NSStreamEventHasBytesAvailable: {
             
@@ -890,7 +963,7 @@ static NSMutableDictionary *folders;
                         
                         if (parsedBytes > 0) {
                             if (listingEntity != NULL) {            
-                                [self.filesInfo addObject:(NSDictionary *)listingEntity];                            
+                                self.filesInfo = [self.filesInfo arrayByAddingObject:(NSDictionary *)listingEntity];                            
                             }            
                             offset += parsedBytes;            
                         }
@@ -970,6 +1043,10 @@ static NSMutableDictionary *folders;
         //Client errors
         case kWRFTPClientCantOpenStream:
             mess = @"Can't open stream, probably the URL is wrong.";
+            break;
+            
+        case kWRFTPClientStreamTimedOut:
+            mess = @"No response from the server. Timeout.";
             break;
             
         case kWRFTPClientCantReadStream:
