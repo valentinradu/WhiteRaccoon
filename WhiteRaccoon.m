@@ -271,10 +271,10 @@ static NSMutableDictionary *folders;
     [headRequest start];
 }
 
--(void) destroy{
-    [super destroy];
+-(void) destroy{    
     [headRequest destroy];
     headRequest.nextRequest = nil;
+    [super destroy];
 }
 
 
@@ -347,7 +347,7 @@ static NSMutableDictionary *folders;
 - (id)init {
     self = [super init];
     if (self) {
-        self.streamInfo = malloc(sizeof(struct WRStreamInfo));
+        self.streamInfo = (struct WRStreamInfo *) malloc(sizeof(struct WRStreamInfo));
         self.streamInfo->bytesConsumedThisIteration = 0;
         self.streamInfo->bytesConsumedInTotal = 0;
     }
@@ -355,16 +355,17 @@ static NSMutableDictionary *folders;
 }
 
 -(void)destroy {
-    [super destroy];
+    
     self.streamInfo->bytesConsumedThisIteration = 0;
-    self.streamInfo->bytesConsumedInTotal = 0;
+    self.streamInfo->bytesConsumedInTotal = 0;    
+    [super destroy];
 }
 
 -(void)dealloc {
     [nextRequest release];
     [prevRequest release];
     [delegate release];
-    
+    free(streamInfo);
     [super dealloc];
 }
 
@@ -486,12 +487,15 @@ static NSMutableDictionary *folders;
 }
 
 -(void) destroy{
-    [super destroy];
     
-    [self.streamInfo->readStream close];
-    [self.streamInfo->readStream removeFromRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
-    [self.streamInfo->readStream release];
-    self.streamInfo->readStream = nil;    
+    if (self.streamInfo->readStream) {
+        [self.streamInfo->readStream close];
+        [self.streamInfo->readStream removeFromRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
+        [self.streamInfo->readStream release];
+        self.streamInfo->readStream = nil;
+    }
+    
+    [super destroy];
 }
 
 -(void)dealloc {
@@ -755,12 +759,17 @@ static NSMutableDictionary *folders;
 
 
 -(void) destroy{
-    [super destroy];
     
-    [self.streamInfo->writeStream close];
-    [self.streamInfo->writeStream removeFromRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
-    [self.streamInfo->writeStream release];
-    self.streamInfo->writeStream = nil;    
+    
+    if (self.streamInfo->writeStream) {
+        [self.streamInfo->writeStream close];
+        [self.streamInfo->writeStream removeFromRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
+        [self.streamInfo->writeStream release];
+        self.streamInfo->writeStream = nil;
+    }
+    
+    
+    [super destroy];
 }
 
 
