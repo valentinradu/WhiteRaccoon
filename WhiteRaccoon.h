@@ -161,15 +161,16 @@ typedef struct WRStreamInfo {
 /*======================================================WRRequest============================================================*/
 
 @interface WRRequest : WRBase {
-    @protected
-    WRStreamInfo streamInfo;
-    BOOL didManagedToOpenStream;
+    
 }
 
 @property (nonatomic, retain) WRRequest * nextRequest;
 @property (nonatomic, retain) WRRequest * prevRequest;
 @property (nonatomic, readonly) WRRequestTypes type;
 @property (nonatomic, retain) id<WRRequestDelegate> delegate;
+@property (nonatomic, assign) WRStreamInfo * streamInfo;
+@property (nonatomic, assign) BOOL didManagedToOpenStream;
+
 
 @end
 
