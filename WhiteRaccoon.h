@@ -60,7 +60,7 @@ typedef enum {
 
 
 typedef enum {
-    kWRDefaultTimeout = 10
+    kWRDefaultTimeout = 30
 } WRTimeouts;
 
 
@@ -168,7 +168,7 @@ typedef struct WRStreamInfo {
 @property (nonatomic, retain) WRRequest * prevRequest;
 @property (nonatomic, readonly) WRRequestTypes type;
 @property (nonatomic, retain) id<WRRequestDelegate> delegate;
-@property (nonatomic, assign) WRStreamInfo * streamInfo;
+@property (nonatomic, readonly) WRStreamInfo * streamInfo;
 @property (nonatomic, assign) BOOL didManagedToOpenStream;
 
 

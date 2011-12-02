@@ -347,7 +347,9 @@ static NSMutableDictionary *folders;
 - (id)init {
     self = [super init];
     if (self) {
-        self.streamInfo = (struct WRStreamInfo *) malloc(sizeof(struct WRStreamInfo));
+        streamInfo = (struct WRStreamInfo *) malloc(sizeof(struct WRStreamInfo));
+        self.streamInfo->readStream = nil;
+        self.streamInfo->writeStream = nil;
         self.streamInfo->bytesConsumedThisIteration = 0;
         self.streamInfo->bytesConsumedInTotal = 0;
     }
@@ -760,8 +762,8 @@ static NSMutableDictionary *folders;
 
 -(void) destroy{
     
-    
     if (self.streamInfo->writeStream) {
+        
         [self.streamInfo->writeStream close];
         [self.streamInfo->writeStream removeFromRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
         [self.streamInfo->writeStream release];
