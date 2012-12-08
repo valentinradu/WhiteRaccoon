@@ -64,18 +64,19 @@ typedef enum {
 } WRTimeouts;
 
 
-typedef struct WRStreamInfo {
-    
-    NSOutputStream    *writeStream;    
-    NSInputStream     *readStream;
-    UInt32            bytesConsumedThisIteration;    
-    UInt32            bytesConsumedInTotal;
-    SInt64            size;
-    UInt8             buffer[kWRDefaultBufferSize];
-    
-} WRStreamInfo;
 
 
+/*======================================================WRStreamInfo============================================================*/
+
+@interface WRStreamInfo:NSObject
+    @property (nonatomic, strong) NSOutputStream    *writeStream;
+    @property (nonatomic, strong) NSInputStream     *readStream;
+    @property (nonatomic, assign) UInt32            bytesConsumedThisIteration;
+    @property (nonatomic, assign) UInt32            bytesConsumedInTotal;
+    @property (nonatomic, assign) SInt64            size;
+    @property (nonatomic, assign) UInt8            *buffer;
+
+@end
 
 
 
@@ -131,16 +132,16 @@ typedef struct WRStreamInfo {
     NSString * hostname;
 }
 
-@property (nonatomic, retain) NSString * username;
+@property (nonatomic, strong) NSString * username;
 @property (nonatomic, assign) WRSchemes schemeId;
-@property (nonatomic, readonly) NSString * scheme;
-@property (nonatomic, retain) NSString * password;
-@property (nonatomic, retain) NSString * hostname;
-@property (nonatomic, readonly) NSString * credentials;
-@property (nonatomic, readonly) NSURL * fullURL;
-@property (nonatomic, retain) NSString * path;
+@property (weak, nonatomic, readonly) NSString * scheme;
+@property (nonatomic, strong) NSString * password;
+@property (nonatomic, strong) NSString * hostname;
+@property (weak, nonatomic, readonly) NSString * credentials;
+@property (weak, nonatomic, readonly) NSURL * fullURL;
+@property (nonatomic, strong) NSString * path;
 @property (nonatomic, assign) BOOL passive;
-@property (nonatomic, retain) WRRequestError * error;
+@property (nonatomic, strong) WRRequestError * error;
 
 -(void) start;
 -(void) destroy;
@@ -164,11 +165,11 @@ typedef struct WRStreamInfo {
     
 }
 
-@property (nonatomic, retain) WRRequest * nextRequest;
-@property (nonatomic, retain) WRRequest * prevRequest;
+@property (nonatomic, strong) WRRequest * nextRequest;
+@property (nonatomic, strong) WRRequest * prevRequest;
 @property (nonatomic, readonly) WRRequestTypes type;
-@property (nonatomic, retain) id<WRRequestDelegate> delegate;
-@property (nonatomic, readonly) WRStreamInfo * streamInfo;
+@property (nonatomic, weak) id<WRRequestDelegate> delegate;
+@property (strong, nonatomic, readonly) WRStreamInfo * streamInfo;
 @property (nonatomic, assign) BOOL didManagedToOpenStream;
 
 
@@ -188,7 +189,7 @@ typedef struct WRStreamInfo {
   
 }
 
-@property (nonatomic, retain) NSData * receivedData;
+@property (nonatomic, strong) NSData * receivedData;
 
 @end
 
@@ -207,8 +208,8 @@ typedef struct WRStreamInfo {
     
 }
 
-@property (nonatomic, retain) WRRequestListDirectory * listrequest;
-@property (nonatomic, retain) NSData * sentData;
+@property (nonatomic, strong) WRRequestListDirectory * listrequest;
+@property (nonatomic, strong) NSData * sentData;
 
 @end
 
@@ -260,7 +261,7 @@ typedef struct WRStreamInfo {
    
 }
 
-@property (nonatomic, retain) NSArray * filesInfo;
+@property (nonatomic, strong) NSArray * filesInfo;
 
 
 @end
@@ -288,7 +289,7 @@ typedef struct WRStreamInfo {
     
 }
 
-@property (nonatomic, retain) id<WRQueueDelegate> delegate;
+@property (nonatomic, strong) id<WRQueueDelegate> delegate;
 
 -(void) addRequest:(WRRequest *) request;
 -(void) addRequestInFront:(WRRequest *) request;
@@ -337,7 +338,7 @@ typedef enum {
 }
 
 @property (nonatomic, assign) WRErrorCodes errorCode;
-@property (nonatomic, readonly) NSString * message;
+@property (weak, nonatomic, readonly) NSString * message;
 
 -(WRErrorCodes) errorCodeWithError:(NSError *) error;
 @end
