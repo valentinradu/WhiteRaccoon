@@ -1104,8 +1104,11 @@ static NSMutableDictionary *folders;
 
 
 -(WRErrorCodes) errorCodeWithError:(NSError *) error {
-    //NSLog(@"%@", error);
-    return 0;
+
+    
+    WRErrorCodes code = [[error.userInfo objectForKey:(NSString*)kCFFTPStatusCodeKey] intValue];
+    
+    return code;
 }
 
 
