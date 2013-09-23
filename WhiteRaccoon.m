@@ -262,7 +262,6 @@ static NSMutableDictionary *folders;
 // delegate methods
 
 -(void) requestCompleted:(WRRequest *) request {
-    
     [self.delegate requestCompleted:request];
     
     headRequest = headRequest.nextRequest;
@@ -272,8 +271,6 @@ static NSMutableDictionary *folders;
     }else{
        [headRequest start]; 
     }
-    
-    
 }
 
 -(void) requestFailed:(WRRequest *) request{    
@@ -425,13 +422,8 @@ static NSMutableDictionary *folders;
             
             if (self.streamInfo.bytesConsumedThisIteration!=-1) {
                 if (self.streamInfo.bytesConsumedThisIteration!=0) {
-                    
-                    NSMutableData * recivedDataWithNewBytes = [self.receivedData mutableCopy];                    
-                    [recivedDataWithNewBytes appendBytes:self.streamInfo.buffer length:self.streamInfo.bytesConsumedThisIteration];
-                    
-                    self.receivedData = [NSData dataWithData:recivedDataWithNewBytes];
-                    
-                    
+                    NSMutableData *receivedMutableData = (NSMutableData *) self.receivedData;
+                    [receivedMutableData appendBytes:self.streamInfo.buffer length:self.streamInfo.bytesConsumedThisIteration];
                 }
             }else{
                 InfoLog(@"Stream opened, but failed while trying to read from it.");
