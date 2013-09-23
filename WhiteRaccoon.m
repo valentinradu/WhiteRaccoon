@@ -261,8 +261,7 @@ static NSMutableDictionary *folders;
 
 // delegate methods
 
--(void) requestCompleted:(WRRequest *) request
-{
+-(void) requestCompleted:(WRRequest *) request {
     [self.delegate requestCompleted:request];
     
     headRequest = headRequest.nextRequest;
